@@ -1,0 +1,64 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+  {% load static %}
+  <title>Explore</title>
+  <link rel="stylesheet" type="text/css" href="{% static 'photo/style.css' %}" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel='icon' href="{% static 'photo/favicon.png' %}" type='image/png'/ >
+</head>
+<body>
+  {% if user.is_authenticated %}
+    {% include "photo/base.html" %}
+  {% else %}
+    {% include "photo/anon_base.html" %}
+  {% endif %}
+  <div class="spacer"></div>
+  <h1>Explore</h1>
+  <h2>
+    Recent Uploads
+  </h2>
+  <div class="video_grid">
+  {% for p in photos %}
+  <a href="{{p.id}}/watch">
+    <div>
+      <video src="{{p.video.url}}" class="thumbnail"></video><br />
+      <div style="margin-bottom: 5px; margin-top: 5px;">
+        <b style="font-size: 16px;">{{p.title}}</b><br />
+      </div>
+      <div style="margin-bottom: 5px;">
+        {{p.descrip}}
+      </div>
+      <div style="margin-bottom: 5px; color: grey;">
+        <b>{{p.owner.username}}</b> &nbsp; {{p.created}}
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+  </div>
+  <h2>History</h2>
+  <div class="video_grid">
+  {% for h in history %}
+    {% for v in photos %}
+      {% if v.id == h %}
+      <a href="{{v.id}}/watch">
+        <div>
+          <video src="{{v.video.url}}" class="thumbnail"></video><br />
+          <div style="margin-bottom: 5px; margin-top: 5px;">
+            <b style="font-size: 16px;">{{v.title}}</b><br />
+          </div>
+          <div style="margin-bottom: 5px;">
+            {{v.descrip}}
+          </div>
+          <div style="margin-bottom: 5px; color: grey;">
+            <b>{{v.owner.username}}</b> &nbsp; {{v.created}}
+          </div>
+        </div>
+      </a>
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+  </div>
+</body>
+</html>

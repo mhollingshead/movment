@@ -1,0 +1,33 @@
+{% extends "account/base.html" %}
+{% block content %}
+<div class="form">
+  <h1>Login</h1>
+  <div class="spacer"></div>
+  <div class="error">{{ form.non_field_errors }}</div>
+  <form action="" method="post">
+      {% csrf_token %}
+      <div>
+        <p>
+          <input type="text" name="username" placeholder="Username"/>
+        </p>
+        <div class="error">
+          {{ form.username.errors }}
+        </div>
+      </div>
+      <div>
+        <p>
+          <input type="password" name="password" placeholder="Password"/>
+        </p>
+        <div class="error">
+          {{ form.password.errors }}
+        </div>
+      </div>
+      <p align="right">
+        <input type="submit" value="Login" class="button"/>
+      </p>
+      <p class="note" align="center">
+        Don't have an account? <a href="{% url 'signup' %}" class="green">Sign up</a>
+      </p>
+  </form>
+</div>
+{% endblock %}

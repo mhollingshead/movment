@@ -1,0 +1,16 @@
+<!-- Base header for when a user is logged in -->
+
+<header>
+  <div id="header">
+    <a href="/">
+      <div id="logo" align="left">
+        <span class="green">.</span>mov<span style="font-weight: 300;">ment</span>
+      </div>
+    </a>
+    <div id="nav" align="right">
+      <a href="/">Explore</a>
+      <a href="{% url 'logout' %}">Logout</a>
+      <a href="{% url 'dashboard' %}"class="user">{{ user.get_username }}</a>
+    </div>
+  </div>
+</header>

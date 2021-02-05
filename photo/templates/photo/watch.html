@@ -1,0 +1,271 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+  {% load static %}
+  <title>{{ video.title }}</title>
+  <link rel="stylesheet" type="text/css" href="{% static 'photo/style.css' %}" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel='icon' href="{% static 'photo/favicon.png' %}" type='image/png'/ >
+</head>
+<body>
+{% if user.is_authenticated %}
+  {% include "photo/base.html" %}
+{% else %}
+  {% include "photo/anon_base.html" %}
+{% endif %}
+<div class="spacer"></div>
+<div id="video_page_wrapper">
+  <div id="labels">
+    <div id="video_title">
+      {{ video.title }}
+    </div>
+    <div id="comment_title">
+      <strong>Comments</strong> (<span id="comment_count"></span>)
+    </div>
+  </div>
+  <div id="content">
+    <div id="video_area" align="center">
+      <div id="video_wrapper" style="position: relative; background: black;">
+        <video id="video" src="{{video.video.url}}" width="100%" height="auto" style="background: black;"></video>
+        <div id="video_controls" style="position: absolute; bottom: 0; left: 0; width: 100%;">
+          <br/><br/>
+          <table width="100%" style="color: white;">
+            <tr>
+              <td align="left" style="padding: 10px; vertical-align: middle;" width="20px">
+                <b class="icon" onclick="playPause();" id="pp">play_arrow</b>
+              </td>
+              <td width="70px">
+                <div style="font-size: 13px;">
+                  <span id="cur">0:00</span> / <span id="tot">0:00</span>
+                </div>
+              </td>
+              <td align="right" style="padding: 10px;">
+                <b class="icon" onclick="muteUnmute();" id="mu">volume_up</b>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
+      <table id="progress_bar" width="100%" style="background: #dedede; height: 5px;">
+        <tr id="prog_row"></tr>
+      </table>
+    </div>
+    <div id="comment_area">
+      <div id="comments">{% for c in comments %}<div class="comment"><table style="width: 100%">
+          <tr>
+            <td style="vertical-align: top; color: grey; text-align: center; font-size: 12px !important; width: 30px; padding-right: 10px;">
+              <div class="vote">
+                <div class="material-icons green" height="5px" style="font-size: 16px; cursor: pointer" onclick="upvote({{c.id}})">
+                  keyboard_arrow_up
+                </div>
+                <div class="comment_score" id="{{c.id}}_score">
+                  {{c.score}}
+                </div>
+                <div class="material-icons green" height="5px" style="font-size: 16px; cursor: pointer" onclick="downvote({{c.id}})">
+                  keyboard_arrow_down
+                </div>
+              </div>
+            </td>
+            <td>
+                <div class="comment_head">
+                  {% if c.owner.username == video.owner.username %}
+                    <span class="user uploader">{{c.owner.username}}</span>
+                  {% else %}
+                    <span class="user">{{c.owner.username}}</span>
+                  {% endif %}
+                  <span class="green" onclick="jumpTo('t'+regularTimeFormat('{{c.time}}'))">@<span class="time_stamp" style="margin-left: 0px;">{{c.time}}</span></span>
+                </div>
+                <div class="comment_body">
+                  {{c.content}}
+                </div>
+            </td>
+          </tr>
+        </table></div>{% endfor %}</div>
+    </div>
+  </div>
+  <div id="info" style="vertical-align: top;">
+    <div id="description_area">
+      <div id="comment_showcase" style="padding-top: 5px;"></div>
+      <div class="spacer"></div>
+      <span class="user">{{video.owner.username}}</span>
+      <span style="color: grey; margin-left: 5px;">{{video.created}}</span>
+      <div id="description">
+        {{video.descrip}}
+      </div>
+    </div>
+    <div id="post_comment" style="display: table-cell; vertical-align: top; padding: 20px;">
+      {% if user.is_authenticated %}
+      <div class="comment_head">
+        <span class="user">{{ user.get_username }}</span>
+        <span class="green">@<span id="current_time" style="margin-left: 0px;">0:00</span></span>
+      </div>
+      <form method="POST" id="comment_form" autocomplete="off">
+        {% csrf_token %}
+        <input type="text" placeholder="Add a comment..." id="draft_comment" onclick="drafting = true;" onblur="drafting = false;" name="content" onkeyup="commentIsEmpty()"/>
+        <div width="100%" align="right" style="margin-top: 20px;">
+          <div id="comment_buttons" width="100%">
+            <a style="display: none;">Cancel</a>
+            <input type="submit" class="button" value="Comment" id="submit_comment" style="opacity: 0.5;"/>
+          </div>
+        </div>
+      </form>
+      {% else %}
+      <div style="font-size: 12px;" align="center">
+        <a class="green" href="{% url 'login' %}">Login</a> to post a comment!
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+<script src="{% static 'photo/watch.js' %}"></script>
+<script>
+  // Included some javascript within the template in order to insert django variables
+
+  // Start websocket
+  var socket = new WebSocket(
+        'ws://' + window.location.host +
+        '/{{video.id}}/watch');
+
+  // When a message is received from the websocket, wait for data to send to the database successfully and reprint all comments. This way, whether the update is a new comment or a vote on a previous comment, the update will be taken care of by this single function
+  socket.onmessage = function(event) {
+    var data = JSON.parse(event.data);
+    setTimeout(function(){
+
+      // Use ajax to get comment and user data
+      $.ajax({
+              url: '/getcomments',
+              datatype: 'json',
+              type: 'GET',
+              data: {
+                video_id: {{video.id}}
+              },
+
+              // Append comments to the comment area
+              success: function(original_data) {
+                  console.log(original_data);
+                  var data = original_data['comments'];
+                  var user_data = original_data['users'];
+                  document.getElementById("comments").innerHTML = "";
+                  for (var i = 0; i < data.length; i++) {
+                    console.log(data[i]);
+                    var username = '';
+                    for (var j = 0; j < user_data.length; j++) {
+                      if (data[i]['owner_id'] === user_data[j]['id']) {
+                        username = user_data[j]['username'];
+                      }
+                    }
+
+                    var username_html;
+                    if (username === '{{video.owner.username}}') {
+                      username_html = '<span class="user uploader">' + username + '</span> '
+                    }
+                    else {
+                      username_html = '<span class="user">' + username + '</span> '
+                    }
+                    var username = '';
+                    var area = document.getElementById("comments");
+                    area.innerHTML += '<div class="comment"><table style="width: 100%"><tr><td style="vertical-align: top; color: grey; text-align: center; font-size: 12px !important; width: 30px; padding-right: 10px;"><div class="vote"><div class="material-icons green" height="5px" style="font-size: 16px; cursor: pointer" onclick="upvote(' + data[i]['id'] + ')">keyboard_arrow_up</div><div class="comment_score" id="' + data[i]['id'] + '_score">' + data[i]['score'] + '</div><div class="material-icons green" height="5px" style="font-size: 16px; cursor: pointer" onclick="downvote(' + data[i]['id'] + ')">keyboard_arrow_down</div></div></td><td><div class="comment_head">' + username_html + '<span class="green" onclick="jumpTo(' + "'t'+regularTimeFormat('" + data[i]['time'] + "'" + '))">@<span class="time_stamp" style="margin-left: 0px;">' + data[i]['time'] + '</span></span></div><div class="comment_body">' + data[i]['content'] + '</div></td></tr></table></div>';
+                    document.getElementById("comment_count").innerHTML = data.length;
+                    var bar = document.getElementById("prog_row");
+                    var ticks = bar.childNodes;
+                    console.log(data[i]['time'])
+                    ticks[parseInt(regularTimeFormat(data[i]['time']))].classList.add("sqr");
+                  }
+              }
+          });
+    }, 300);
+  };
+
+  // Add event handler for submission of the comment form
+  $('#comment_form').on('submit', function(event){
+      event.preventDefault();
+      comment();
+  });
+
+  // Check if the comment input area is empty or whitespace and update the submit button accordingly
+  function commentIsEmpty() {
+    var str = document.getElementById("draft_comment").value;
+    if (str.match(/^\s*$/)) {
+      document.getElementById("submit_comment").style.opacity = '0.5';
+      console.log(true);
+      return true;
+    } else {
+      document.getElementById("submit_comment").style.opacity = '1';
+      console.log(false);
+      return false;
+    }
+  }
+
+  // If the comment has content, use ajax to post the new comment to the comment database
+  function comment() {
+    if (!commentIsEmpty()) {
+      $.ajax({
+        url: "/comment",
+        type: "POST",
+        headers:{
+            "X-CSRFToken": '{{ csrf_token }}'
+        },
+        data: {
+          content: $("#draft_comment").val(),
+          video: {{video.id}},
+          time: $("#current_time").html(),
+          score: 0,
+        },
+        success : function() {
+                $('#draft_comment').val('');
+                console.log("success");
+            },
+      });
+
+      socket.send(JSON.stringify({
+        content: ""
+      }));
+    }
+  }
+
+  // Use ajax to increase a comment's score by 1
+  function upvote(comment_id) {
+    $.ajax({
+      url: "/vote",
+      type: "POST",
+      headers:{
+          "X-CSRFToken": '{{ csrf_token }}'
+      },
+      data: {
+        id: comment_id,
+        change: 1
+      }
+    });
+    var score = parseInt(document.getElementById(comment_id+"_score").innerHTML);
+    score++;
+    document.getElementById(comment_id+"_score").innerHTML = score;
+    socket.send(JSON.stringify({
+      content: ""
+    }));
+  }
+
+  // Use ajax to decrease a comment's score by 1
+  function downvote(comment_id) {
+    $.ajax({
+      url: "/vote",
+      type: "POST",
+      headers:{
+          "X-CSRFToken": '{{ csrf_token }}'
+      },
+      data: {
+        id: comment_id,
+        change: -1
+      }
+    });
+    var score = parseInt(document.getElementById(comment_id+"_score").innerHTML);
+    score--;
+    document.getElementById(comment_id+"_score").innerHTML = score;
+    socket.send(JSON.stringify({
+      content: ""
+    }));
+  }
+</script>
+</body>
+</html>

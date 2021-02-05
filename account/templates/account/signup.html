@@ -1,0 +1,48 @@
+{% extends 'account/base.html' %}
+{% block content %}
+<div class="form">
+  <h1>Sign Up</h1>
+  <div class="spacer"></div>
+  <form action="" method="post">
+      {% csrf_token %}
+      <div>
+        <p>
+          <input type="text" name="username" value="{{form.data.username}}" placeholder="Username"/>
+        </p>
+        <div class="error">
+          {{ form.username.errors }}
+        </div>
+      </div>
+      <div>
+        <p>
+          <input type="text" name="email" value="{{form.data.email}}" placeholder="Email"/>
+        </p>
+        <div class="error">
+          {{ form.email.errors }}
+        </div>
+      </div>
+      <div>
+        <p>
+          <input type="password" name="password" placeholder="Password"/>
+        </p>
+        <div class="error">
+          {{ form.password.errors }}
+        </div>
+      </div>
+      <div>
+        <p>
+          <input type="password" name="password_confirm" placeholder="Confirm Password"/>
+        </p>
+        <div class="error">
+          {{ form.password_confirm.errors }}
+        </div>
+      </div>
+      <p align="right">
+        <input type="submit" value="Create Account" class="button"/>
+      </p>
+      <p class="note" align="center">
+        Already have an account? <a href="{% url 'login' %}" class="green">Login</a>
+      </p>
+  </form>
+</div>
+{% endblock %}
